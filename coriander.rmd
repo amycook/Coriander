@@ -254,16 +254,65 @@ ggplot(plot.df, aes(x = sentiment, y = count)) +
 ```
 
 
+
+Compare to AFINN method of sentiment classification
+
+```{r}
+
+#trial on single sentence
+
+x = 'Wow 2 awards this year for our Coppa and Fennel and Coriander Salami Thanks Great Taste Awards'
+        
+get_sentiment(x, method = 'afinn')
+
+token.afinn <- function(x){
+        output <- vector(mode = "list", length = length(x))
+        
+        for(i in seq_along(x)){
+                by.word <- data_frame("token" = c(get_tokens(x[i])))
+                
+                by.word <- cbind(by.word, 'afinn' = get_sentiment(by.word$token, method = 'afinn'))
+                total <- data_frame('token' = c("TOTAL"),
+                                    'afinn' = get_sentiment(x[i], method = 'afinn'))
+                
+                by.word <- rbind(by.word, total)
+                
+                #filter for rows with entries greater than 0:
+                output[[i]] <- by.word[rowSums(by.word %>% select(-token)) != 0,]
+        }
+        
+        names(output) = x
+        return(output)
+}
+
+token.afinn(x)
+
+# run full dataset through
+
+tweetsDF <- cbind(tweetsDF,
+                  'afinn' = get_sentiment(tweetsDF$text, method = 'afinn'))
+
+
+```
+
 ## Investigate
 
 Highest sentiment tweets
 
 ```{r}
 
-sent.summary <- function(sentiment = "positive", df = tweetsDF, n = 3){
+sent.summary <- function(sentiment = "positive", df = tweetsDF, n = 3, order.desc = TRUE){
+        if(order.desc == TRUE){
         temp <- df[order(-df[,sentiment]),] %>% slice(1:n)
+        } else {
+                temp <- df[order(df[,sentiment]),] %>% slice(1:n)
+        }
         
+        if(sentiment != "afinn"){
         top.n <- token.sent(temp$text)
+        } else {
+                top.n = token.afinn(temp$text)
+        }
         
         print(temp[,c(sentiment)])
         print(
@@ -276,10 +325,39 @@ sent.summary("disgust")
 sent.summary("anticipation")
 sent.summary("retweetCount")
 sent.summary("favoriteCount")
+sent.summary("afinn", n = 6)
+sent.summary("afinn", order.desc = FALSE, n = 20)
 
 
 ```
 
+
+
+Test new package
+
+```{r}
+
+hash_sentiment(regex = "coriander|cilantro", num.tweets = 200, 
+               method = "afinn", sentiment = "negative",
+               num.summary = 7, scrape = FALSE)
+
+hash_sentiment(regex = "coriander|cilantro", num.tweets = 200, 
+               method = "afinn", sentiment = "positive",
+               num.summary = 6, scrape = FALSE)
+
+hash_sentiment(regex = "taylor swift", num.tweets = 400, 
+               method = "afinn", sentiment = "negative",
+               num.summary = 7, scrape = TRUE)
+
+hash_sentiment(regex = "taylor swift", num.tweets = 400, 
+               method = "afinn", sentiment = "positive",
+               num.summary = 6, scrape = FALSE)
+
+tweetsDF %>% arrange(desc(favoriteCount)) %>% head(6) %>% .$text
+tweetsDF %>% arrange(desc(retweetCount)) %>% head(6) %>% .$text
+        
+
+```
 
 
 
